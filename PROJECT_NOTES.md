@@ -19,12 +19,16 @@ hardware only.
 
 | Piece              | Status                    | Where                                          |
 | ------------------ | ------------------------- | ---------------------------------------------- |
-| `sahara-mcp`       | alpha · uploaded          | https://github.com/libertyrights/sahara-mcp    |
-| `firehose-mcp`     | alpha · in progress       | —                                              |
-| `qcdm-mcp` (Diag)  | alpha · planned           | —                                              |
-| `at-mcp` (modem)   | alpha · planned           | —                                              |
+| `sahara-mcp`       | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/sahara-mcp    |
+| `firehose-mcp`     | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/firehose-mcp  |
+| `qcdm-mcp` (Diag)  | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/qcdm-mcp      |
+| `at-mcp` (modem)   | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/at-mcp        |
 | Meshtastic MCP     | alpha · install (official) via uvx | https://github.com/meshtastic/meshtastic-mcp |
 | ADB / forensics    | already present           | MCP `android-adb`, `android-forensics`         |
+
+**Licence:** all four MCP servers are **GPL-3.0** (copyleft — derivatives must
+stay open). Protocol facts reference `linux-msm/qdl` (BSD-3-Clause, compatible
+with GPL). `bkerler/edl` (GPL-3.0) consulted for behavior only; not copied.
 
 ## Goal statement
 
@@ -33,9 +37,11 @@ hardware only.
 - Expose each protocol as an MCP server so agent workflows can: enumerate
   devices, handshake, identify the SoC, load a Firehose programmer, flash /
   read partitions, talk to the modem (Diag NV/EFS, AT), and capture radios.
-- Licence-clean end to end: original code MIT; reference BSD-3-Clause
-  (`linux-msm/qdl`) and credit it; **no GPL code imported** (e.g.
-  `bkerler/edl` is GPL-3.0 — consult for behavior only, never copy).
+- Licence-clean end to end: all our code is **GPL-3.0** (copyleft, so
+  derivatives must stay open source too); protocol facts reference BSD-3-Clause
+  (`linux-msm/qdl`) and MIT (`grmrgecko/qcdm-efs2`) work, which both license
+  freely into GPL projects. No GPL *code* is copied without the project
+  already being GPL.
 
 ## Protocol stack (down → up)
 
