@@ -23,12 +23,36 @@ hardware only.
 | `firehose-mcp`     | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/firehose-mcp  |
 | `qcdm-mcp` (Diag)  | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/qcdm-mcp      |
 | `at-mcp` (modem)   | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/at-mcp        |
-| Meshtastic MCP     | alpha · install (official) via uvx | https://github.com/meshtastic/meshtastic-mcp |
+| `edl-mcp` (façade) | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/edl-mcp       |
+| `fastboot-mcp`     | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/fastboot-mcp  |
+| `qcn-mcp` (QCN/NV) | alpha · uploaded · GPL-3.0| https://github.com/libertyrights/qcn-mcp       |
+| Meshtastic MCP     | installed · wired (uv tool, pinned `mcp<2`) | https://github.com/meshtastic/meshtastic-mcp |
 | ADB / forensics    | already present           | MCP `android-adb`, `android-forensics`         |
 
-**Licence:** all four MCP servers are **GPL-3.0** (copyleft — derivatives must
+All seven of our MCP servers ship a `tests/` pytest harness (mocked USB/serial,
+no hardware needed) — currently **passing** locally. They are still alpha and
+untested against real devices.
+
+**Licence:** all seven MCP servers are **GPL-3.0** (copyleft — derivatives must
 stay open). Protocol facts reference `linux-msm/qdl` (BSD-3-Clause, compatible
 with GPL). `bkerler/edl` (GPL-3.0) consulted for behavior only; not copied.
+
+## Safety model (uniform across servers)
+
+Every tool that writes to a device takes `dry_run: bool = True` and
+`confirm: bool = False`. Unless **both** `dry_run=False` and `confirm=True` are
+passed, the tool performs **nothing** (no USB/serial port is even opened) and
+returns a payload describing exactly what it *would* do:
+
+```json
+{"dry_run": true, "executed": false, "would_do": {...},
+ "message": "DRY RUN — nothing written; set dry_run=False and confirm=True to proceed."}
+```
+
+Read-only tools (`*_list_devices`, `*_chipinfo`, `diag_nv_read`, `at_signal`,
+`qcn_info`, `edl_parse_gpt_file`, …) are unguarded. The **façade `edl-mcp`**
+always resolves the SoC via its chipset DB before suggesting a Firehose loader,
+and its `edl_backup_partitions` is read-only on the device (backup-first).
 
 ## Goal statement
 
@@ -64,6 +88,18 @@ with GPL). `bkerler/edl` (GPL-3.0) consulted for behavior only; not copied.
 6. **Meshtastic** — LoRa off-grid mesh for the radio leg (emergency comms
    companion to the cellular work). Official MCP server exists.
 
+Convenience layers built on the above:
+
+- **`edl-mcp`** — high-level façade over steps 2–3: one call chains Sahara →
+  Firehose, auto-picks a loader hint from the **chipset DB**
+  (`msm_id`/`oem_id`/`model_id` → SoC name), and parses GPT locally. Ships a
+  user-overridable DB at `~/.config/edl-mcp/chipsets.json`. Chipset names are
+  best-effort and marked uncertain until verified.
+- **`fastboot-mcp`** — bootloader-stage ops (getvar, flash, erase, `oem` /
+  `flashing unlock`, reboot) via the official `fastboot` CLI.
+- **`qcn-mcp`** — offline QCN/NV backup tooling (parse, list, extract IMEI,
+  diff, patch with dry-run). Nothing here touches a device.
+
 ## Machine setup (this laptop)
 
 - OS: Windows; shell: PowerShell 5.1. NOT a git repo at the workspace root —
@@ -73,6 +109,19 @@ with GPL). `bkerler/edl` (GPL-3.0) consulted for behavior only; not copied.
   (`gh` git ops via HTTPS). Commit identity:
   `libertyrights <libertyrightsassn@gmail.com>`.
 - USB plan: Zadig/WinUSB for EDL interfaces so pyusb/libusb can claim them.
+- `uv` 0.13.0 installed via `pip install uv`. Meshtastic MCP installed as a uv
+  tool: `uv tool install meshtastic-mcp --with "mcp<2"` → shims in
+  `C:\Users\mark\.local\bin\` (the `--with "mcp<2"` pin works around an upstream
+  break: `mcp` 2.x renamed `FastMCP`→`MCPServer` and `meshtastic-mcp` imports the
+  old path). Run its CLI with `PYTHONUTF8=1` to avoid a cp1252 console crash.
+- `git`/`gh` are installed but **not on the default shell PATH** — they live at
+  `C:\Program Files\Git\cmd\git.exe` and `C:\Program Files\GitHub CLI\gh.exe`.
+  Prefix `PATH` (or use full paths). Credential helper is
+  `!gh auth git-credential` and pushes need `GIT_TERMINAL_PROMPT=0`.
+- `pytest` installed; each repo has a `tests/` harness that runs with no devices.
+- MCP client config: `C:\Users\mark\.config\opencode\opencode.jsonc` (registers
+  `sahara-mcp`, `firehose-mcp`, `qcdm-mcp`, `at-mcp`, `edl-mcp`, `fastboot-mcp`,
+  `qcn-mcp`, `meshtastic`). Restart the client to pick up new servers.
 
 ## Libraries / references
 
@@ -83,13 +132,20 @@ with GPL). `bkerler/edl` (GPL-3.0) consulted for behavior only; not copied.
   `qcdm-mcp`); not imported.
 - `grmrgecko/qcdm-efs2` — single-file EFS2-over-DIAG client (reference).
 - `strongtz/edl-ng` — MIT, .NET Sahara/Firehose (cross-check framing).
-- `meshtastic/meshtastic-mcp` — official Meshtastic MCP server.
+- `meshtastic/meshtastic-mcp` — official Meshtastic MCP server (installed).
+- `JohnBel/EfsTools` — QCN/NV item id definitions (reference for `qcn-mcp`).
+- QCN NV item ids (IMEI 550, MEID 1943, ESN 0, …) cross-checked against ORCT /
+  `dl12345` / `fipso` write-ups — facts only.
 
 ## Next steps
 
-1. Finish `firehose-mcp` (fetch `qdl/src/firehose.c` for framing facts).
-2. Write `qcdm-mcp` and `at-mcp`.
-3. Push each to GitHub under `libertyrights`, MIT + credits.
-4. Wire Meshtastic MCP into the agent config.
-5. First on-hardware run: EDL → Sahara handshake → chip info → Firehose GPT
-   print. Verify only on owned lab hardware.
+1. ~~Finish `firehose-mcp`~~ — done.
+2. ~~Write `qcdm-mcp` and `at-mcp`~~ — done; plus `edl-mcp`, `fastboot-mcp`,
+   `qcn-mcp`.
+3. ~~Push each to GitHub under `libertyrights`~~ — done, GPL-3.0.
+4. ~~Wire Meshtastic MCP into the agent config~~ — done (pinned `mcp<2`).
+5. **Still open:** first on-hardware run on owned lab hardware only — EDL →
+   Sahara handshake → chip info → loader → Firehose GPT print → backup GPT →
+   only then any write. Use the `edl-mcp` façade with `dry_run`/`confirm`.
+6. **Still open:** verify the chipset DB entries against real devices and grow
+   the `~/.config/edl-mcp/chipsets.json` override file.
